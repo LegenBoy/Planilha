@@ -42,6 +42,9 @@ if file_original and file_alterada:
         df_old = load_file(file_original)
         df_new = load_file(file_alterada)
 
+        # Guardar a ordem original das colunas para classificação por posição (Letras do Excel)
+        original_cols_order = df_old.columns.tolist()
+
         # Tentar usar a coluna 'rotas' como índice (Identificador Único)
         id_col = 'rotas'
         if id_col in df_old.columns and id_col in df_new.columns:
@@ -99,12 +102,26 @@ if file_original and file_alterada:
                     
                     df_display.at[idx, col] = f"{str_old} ➡️ {str_new}"
 
+                    # Classificação da alteração baseada na posição da coluna (A=0, B=1, C=2, D=3, E=4...)
+                    col_idx = -1
+                    if col in original_cols_order:
+                        col_idx = original_cols_order.index(col)
+                    
+                    categoria = "Geral"
+                    if 4 <= col_idx <= 15: # Colunas E (4) até P (15)
+                        categoria = "Alterações Filiais"
+                    elif 20 <= col_idx <= 25: # Colunas U (20) até Z (25)
+                        categoria = "Alterações de Transporte"
+                    elif col_idx == 26: # Coluna AA (26)
+                        categoria = "Alteração de Frete Retorno"
+
                     # Adiciona à lista detalhada
                     changes_list.append({
                         "Rota": str(rota_name),
                         "Coluna": col,
                         "Valor Antigo": str_old,
                         "Valor Novo": str_new,
+                        "Categoria": categoria,
                         "ID_REF": idx # Referência interna para filtragem
                     })
 
@@ -133,7 +150,7 @@ if file_original and file_alterada:
             # Cria uma string com todas as alterações daquela rota
             df_changes_grouped = df_changes_detailed.groupby(["ID_REF", "Rota"]).apply(
                 lambda x: pd.Series({
-                    "Alterações": "; ".join([f"{row['Coluna']} ({row['Valor Antigo']} ➡️ {row['Valor Novo']})" for _, row in x.iterrows()])
+                    "Alterações": " | ".join([f"[{row['Categoria']}] {row['Coluna']} ({row['Valor Antigo']} ➡️ {row['Valor Novo']})" for _, row in x.iterrows()])
                 })
             ).reset_index()
             
