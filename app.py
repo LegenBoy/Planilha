@@ -62,6 +62,7 @@ if file_original and file_alterada:
         # Dataframes para visualização
         df_display = df_new.copy().astype(object) # Cópia para mostrar X -> Y
         changes_list = [] # Lista para armazenar o resumo das alterações
+        rows_with_filial_changes = set() # Rastrear linhas com alterações de filiais
 
         # Interseção de linhas e colunas (para comparar apenas o que existe em ambas)
         common_cols = df_old.columns.intersection(df_new.columns)
@@ -117,6 +118,7 @@ if file_original and file_alterada:
                         categoria = "Geral"
                         if 4 <= col_idx <= 15: # Colunas E (4) até P (15)
                             categoria = "Alterações Filiais"
+                            rows_with_filial_changes.add(idx)
                         elif 20 <= col_idx <= 25: # Colunas U (20) até Z (25)
                             categoria = "Alterações de Transporte"
                         elif col_idx == 26: # Coluna AA (26)
@@ -226,6 +228,12 @@ if file_original and file_alterada:
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
+                # Função de estilo para destacar linhas com alterações de filiais
+                def highlight_filial_rows(row):
+                    if row.name in rows_with_filial_changes:
+                        return ['color: blue; font-weight: bold'] * len(row)
+                    return [''] * len(row)
+
                 if len(selected_ids_ref) > 0:
                     # Limita a exibição de nomes se forem muitos para não poluir a tela
                     display_names = ", ".join(selected_rota_names)
@@ -234,14 +242,14 @@ if file_original and file_alterada:
 
                     st.info(f"🔎 Filtrando visualização para: **{display_names}**")
                     # Mostra apenas as linhas selecionadas
-                    st.dataframe(df_display.loc[selected_ids_ref], use_container_width=True)
+                    st.dataframe(df_display.loc[selected_ids_ref].style.apply(highlight_filial_rows, axis=1), use_container_width=True)
                     
                     # Botão para limpar filtro
                     if st.button("🔄 Mostrar Tabela Completa"):
                         st.rerun()
                 else:
                     # Mostra tabela completa padrão
-                    st.dataframe(df_display, use_container_width=True)
+                    st.dataframe(df_display.style.apply(highlight_filial_rows, axis=1), use_container_width=True)
 
             # Opção de Download da Lista
             csv = df_changes_detailed.to_csv(index=False).encode('utf-8')
