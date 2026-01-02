@@ -126,19 +126,28 @@ if file_original and file_alterada:
             st.subheader("📝 Lista de Alterações (Clique para filtrar acima)")
             st.caption("Clique em uma linha abaixo para ver a alteração correspondente na tabela principal.")
 
-            # DataFrame de Alterações (Lista)
-            df_changes = pd.DataFrame(changes_list)
+            # DataFrame de Alterações (Lista Detalhada)
+            df_changes_detailed = pd.DataFrame(changes_list)
+
+            # Agrupar por Rota/ID para exibição compacta
+            # Cria uma string com todas as alterações daquela rota
+            df_changes_grouped = df_changes_detailed.groupby(["ID_REF", "Rota"]).apply(
+                lambda x: pd.Series({
+                    "Alterações": "; ".join([f"{row['Coluna']} ({row['Valor Antigo']} ➡️ {row['Valor Novo']})" for _, row in x.iterrows()])
+                })
+            ).reset_index()
             
             # Exibir lista interativa com seleção habilitada
             event = st.dataframe(
-                df_changes,
+                df_changes_grouped,
                 use_container_width=True,
                 hide_index=True,
                 selection_mode="single-row",
                 on_select="rerun",
                 height=300,
                 column_config={
-                    "ID_REF": None # Oculta a coluna de ID interno
+                    "ID_REF": None, # Oculta a coluna de ID interno
+                    "Alterações": st.column_config.TextColumn("Detalhes das Alterações", width="large")
                 }
             )
 
@@ -150,8 +159,8 @@ if file_original and file_alterada:
                 # Pega o índice numérico da linha selecionada na lista de alterações
                 selected_idx = event.selection.rows[0]
                 # Descobre qual é o ID de referência e o nome da rota
-                selected_id_ref = df_changes.iloc[selected_idx]["ID_REF"]
-                selected_rota_name = df_changes.iloc[selected_idx]["Rota"]
+                selected_id_ref = df_changes_grouped.iloc[selected_idx]["ID_REF"]
+                selected_rota_name = df_changes_grouped.iloc[selected_idx]["Rota"]
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
@@ -168,7 +177,7 @@ if file_original and file_alterada:
                     st.dataframe(df_display, use_container_width=True)
 
             # Opção de Download da Lista
-            csv = df_changes.to_csv(index=False).encode('utf-8')
+            csv = df_changes_detailed.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Baixar Relatório de Alterações (CSV)",
                 data=csv,
