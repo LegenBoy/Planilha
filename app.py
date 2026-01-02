@@ -146,37 +146,76 @@ if file_original and file_alterada:
             # DataFrame de Alterações (Lista Detalhada)
             df_changes_detailed = pd.DataFrame(changes_list)
 
-            # Agrupar por Rota/ID para exibição compacta
-            # Cria uma string com todas as alterações daquela rota
-            df_changes_grouped = df_changes_detailed.groupby(["ID_REF", "Rota"]).apply(
-                lambda x: pd.Series({
-                    "Alterações": " | ".join([f"[{row['Categoria']}] {row['Coluna']} ({row['Valor Antigo']} ➡️ {row['Valor Novo']})" for _, row in x.iterrows()])
-                })
-            ).reset_index()
+            # --- SEPARAÇÃO POR CATEGORIA ---
+            # 1. Alterações Filiais
+            df_det_filiais = df_changes_detailed[df_changes_detailed["Categoria"] == "Alterações Filiais"]
+            # 2. Outras Alterações
+            df_det_outros = df_changes_detailed[df_changes_detailed["Categoria"] != "Alterações Filiais"]
+
+            # Função auxiliar para agrupar alterações por rota
+            def group_changes(df):
+                if df.empty:
+                    return pd.DataFrame(columns=["ID_REF", "Rota", "Alterações"])
+                return df.groupby(["ID_REF", "Rota"]).apply(
+                    lambda x: pd.Series({
+                        "Alterações": " | ".join([f"[{row['Categoria']}] {row['Coluna']} ({row['Valor Antigo']} ➡️ {row['Valor Novo']})" for _, row in x.iterrows()])
+                    })
+                ).reset_index()
+
+            df_grouped_filiais = group_changes(df_det_filiais)
+            df_grouped_outros = group_changes(df_det_outros)
             
-            # Exibir lista interativa com seleção habilitada
-            event = st.dataframe(
-                df_changes_grouped,
+            # --- EXIBIÇÃO LISTA 1: FILIAIS ---
+            st.markdown("### 🏢 Alterações Filiais")
+            event_filiais = st.dataframe(
+                df_grouped_filiais,
                 use_container_width=True,
                 hide_index=True,
                 selection_mode="multi-row",
                 on_select="rerun",
-                height=300,
+                height=200,
+                key="grid_filiais",
                 column_config={
                     "ID_REF": None, # Oculta a coluna de ID interno
                     "Alterações": st.column_config.TextColumn("Detalhes das Alterações", width="large")
                 }
             )
 
-            # Lógica de Filtro: Verifica se o usuário clicou em algo
+            # --- EXIBIÇÃO LISTA 2: OUTROS ---
+            st.markdown("### 🚛 Outras Alterações (Transporte, Geral, etc.)")
+            event_outros = st.dataframe(
+                df_grouped_outros,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="multi-row",
+                on_select="rerun",
+                height=200,
+                key="grid_outros",
+                column_config={
+                    "ID_REF": None, # Oculta a coluna de ID interno
+                    "Alterações": st.column_config.TextColumn("Detalhes das Alterações", width="large")
+                }
+            )
+
+            # Lógica de Filtro: Combina seleções das duas listas
             selected_ids_ref = []
             selected_rota_names = []
 
-            if len(event.selection.rows) > 0:
-                # Pega os índices numéricos das linhas selecionadas
-                for selected_idx in event.selection.rows:
-                    selected_ids_ref.append(df_changes_grouped.iloc[selected_idx]["ID_REF"])
-                    selected_rota_names.append(str(df_changes_grouped.iloc[selected_idx]["Rota"]))
+            # Processa seleção Filiais
+            if len(event_filiais.selection.rows) > 0:
+                for selected_idx in event_filiais.selection.rows:
+                    selected_ids_ref.append(df_grouped_filiais.iloc[selected_idx]["ID_REF"])
+                    selected_rota_names.append(str(df_grouped_filiais.iloc[selected_idx]["Rota"]))
+
+            # Processa seleção Outros
+            if len(event_outros.selection.rows) > 0:
+                for selected_idx in event_outros.selection.rows:
+                    selected_ids_ref.append(df_grouped_outros.iloc[selected_idx]["ID_REF"])
+                    selected_rota_names.append(str(df_grouped_outros.iloc[selected_idx]["Rota"]))
+            
+            # Remove duplicatas (caso a mesma rota esteja selecionada em ambas as listas)
+            selected_ids_ref = list(set(selected_ids_ref))
+            selected_rota_names = list(set(selected_rota_names))
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
