@@ -57,7 +57,7 @@ if file_original and file_alterada:
         df_display = df_new.copy().astype(object) # Cópia para mostrar X -> Y
         changes_list = [] # Lista para armazenar o resumo das alterações
 
-        # Interseção de linhas e colunas
+        # Interseção de linhas e colunas (para comparar apenas o que existe em ambas)
         common_cols = df_old.columns.intersection(df_new.columns)
         common_index = df_old.index.intersection(df_new.index)
 
@@ -76,7 +76,7 @@ if file_original and file_alterada:
                 if v1_norm is None and v2_norm is None:
                     is_diff = False
                 elif v1_norm != v2_norm:
-                    # Verifica tolerância numérica para floats
+                    # Verifica tolerância numérica pequena para floats
                     if isinstance(v1_norm, float) and isinstance(v2_norm, float):
                         if not np.isclose(v1_norm, v2_norm):
                             is_diff = True
@@ -109,7 +109,7 @@ if file_original and file_alterada:
         else:
             st.warning(f"⚠️ Foram encontradas **{total_changes}** alterações.")
 
-            # Container para a Tabela Principal
+            # Container para a Tabela Principal (será filtrada depois)
             st.subheader("📋 Visualização da Planilha")
             main_table_placeholder = st.empty()
 
@@ -130,21 +130,26 @@ if file_original and file_alterada:
                 height=300
             )
 
-            # Lógica de Filtro
+            # Lógica de Filtro: Verifica se o usuário clicou em algo
             selected_rota = None
             if len(event.selection.rows) > 0:
+                # Pega o índice numérico da linha selecionada na lista de alterações
                 selected_idx = event.selection.rows[0]
+                # Descobre qual é a Rota correspondente
                 selected_rota = df_changes.iloc[selected_idx]["Rota (ID)"]
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
                 if selected_rota:
                     st.info(f"🔎 Filtrando visualização para a Rota: **{selected_rota}**")
+                    # Mostra apenas a linha selecionada
                     st.dataframe(df_display.loc[[selected_rota]], use_container_width=True)
                     
+                    # Botão para limpar filtro
                     if st.button("🔄 Mostrar Tabela Completa"):
                         st.rerun()
                 else:
+                    # Mostra tabela completa padrão
                     st.dataframe(df_display, use_container_width=True)
 
             # Opção de Download da Lista
