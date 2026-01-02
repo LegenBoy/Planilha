@@ -107,23 +107,30 @@ if file_original and file_alterada:
                     if col in original_cols_order:
                         col_idx = original_cols_order.index(col)
                     
-                    categoria = "Geral"
-                    if 4 <= col_idx <= 15: # Colunas E (4) até P (15)
-                        categoria = "Alterações Filiais"
-                    elif 20 <= col_idx <= 25: # Colunas U (20) até Z (25)
-                        categoria = "Alterações de Transporte"
-                    elif col_idx == 26: # Coluna AA (26)
-                        categoria = "Alteração de Frete Retorno"
+                    # Definir colunas a serem ignoradas nas listas detalhadas (mas mantidas na visualização geral)
+                    # A(0), B(1), C(2), Q(16), R(17), U(20), V(21), AB(27) até AL(37)
+                    ignored_indices = {0, 1, 2, 16, 17, 20, 21}
+                    ignored_indices.update(range(27, 38))
 
-                    # Adiciona à lista detalhada
-                    changes_list.append({
-                        "Rota": str(rota_name),
-                        "Coluna": col,
-                        "Valor Antigo": str_old,
-                        "Valor Novo": str_new,
-                        "Categoria": categoria,
-                        "ID_REF": idx # Referência interna para filtragem
-                    })
+                    # Só adiciona à lista de alterações se NÃO estiver nas colunas ignoradas
+                    if col_idx not in ignored_indices:
+                        categoria = "Geral"
+                        if 4 <= col_idx <= 15: # Colunas E (4) até P (15)
+                            categoria = "Alterações Filiais"
+                        elif 20 <= col_idx <= 25: # Colunas U (20) até Z (25)
+                            categoria = "Alterações de Transporte"
+                        elif col_idx == 26: # Coluna AA (26)
+                            categoria = "Alteração de Frete Retorno"
+
+                        # Adiciona à lista detalhada
+                        changes_list.append({
+                            "Rota": str(rota_name),
+                            "Coluna": col,
+                            "Valor Antigo": str_old,
+                            "Valor Novo": str_new,
+                            "Categoria": categoria,
+                            "ID_REF": idx # Referência interna para filtragem
+                        })
 
         # --- 4. EXIBIÇÃO DA INTERFACE ---
         
