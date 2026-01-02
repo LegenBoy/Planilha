@@ -67,6 +67,11 @@ if file_original and file_alterada:
         # --- COMPARAÇÃO ---
         total_changes = 0
         for idx in common_index:
+            # Identificar o nome da rota (seja pelo índice ou pela coluna)
+            rota_name = idx
+            if id_col in df_new.columns:
+                rota_name = df_new.at[idx, id_col]
+
             for col in common_cols:
                 val1 = df_old.at[idx, col]
                 val2 = df_new.at[idx, col]
@@ -96,10 +101,11 @@ if file_original and file_alterada:
 
                     # Adiciona à lista detalhada
                     changes_list.append({
-                        "Rota (ID)": idx,
+                        "Rota": str(rota_name),
                         "Coluna": col,
                         "Valor Antigo": str_old,
-                        "Valor Novo": str_new
+                        "Valor Novo": str_new,
+                        "ID_REF": idx # Referência interna para filtragem
                     })
 
         # --- 4. EXIBIÇÃO DA INTERFACE ---
@@ -130,23 +136,29 @@ if file_original and file_alterada:
                 hide_index=True,
                 selection_mode="single-row",
                 on_select="rerun",
-                height=300
+                height=300,
+                column_config={
+                    "ID_REF": None # Oculta a coluna de ID interno
+                }
             )
 
             # Lógica de Filtro: Verifica se o usuário clicou em algo
-            selected_rota = None
+            selected_id_ref = None
+            selected_rota_name = None
+
             if len(event.selection.rows) > 0:
                 # Pega o índice numérico da linha selecionada na lista de alterações
                 selected_idx = event.selection.rows[0]
-                # Descobre qual é a Rota correspondente
-                selected_rota = df_changes.iloc[selected_idx]["Rota (ID)"]
+                # Descobre qual é o ID de referência e o nome da rota
+                selected_id_ref = df_changes.iloc[selected_idx]["ID_REF"]
+                selected_rota_name = df_changes.iloc[selected_idx]["Rota"]
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
-                if selected_rota:
-                    st.info(f"🔎 Filtrando visualização para a Rota: **{selected_rota}**")
+                if selected_id_ref is not None:
+                    st.info(f"🔎 Filtrando visualização para a Rota: **{selected_rota_name}**")
                     # Mostra apenas a linha selecionada
-                    st.dataframe(df_display.loc[[selected_rota]], use_container_width=True)
+                    st.dataframe(df_display.loc[[selected_id_ref]], use_container_width=True)
                     
                     # Botão para limpar filtro
                     if st.button("🔄 Mostrar Tabela Completa"):
