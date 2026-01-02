@@ -45,11 +45,14 @@ if file_original and file_alterada:
         # Tentar usar a coluna 'rotas' como índice (Identificador Único)
         id_col = 'rotas'
         if id_col in df_old.columns and id_col in df_new.columns:
-            df_old = df_old.set_index(id_col)
-            df_new = df_new.set_index(id_col)
-            # Garantir que o índice seja string para evitar problemas
-            df_old.index = df_old.index.astype(str)
-            df_new.index = df_new.index.astype(str)
+            if df_old[id_col].is_unique and df_new[id_col].is_unique:
+                df_old = df_old.set_index(id_col)
+                df_new = df_new.set_index(id_col)
+                # Garantir que o índice seja string para evitar problemas
+                df_old.index = df_old.index.astype(str)
+                df_new.index = df_new.index.astype(str)
+            else:
+                st.warning(f"A coluna '{id_col}' possui valores duplicados. Usando número da linha como referência.")
         else:
             st.warning(f"A coluna '{id_col}' não foi encontrada. Usando número da linha como referência.")
 
