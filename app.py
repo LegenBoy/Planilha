@@ -159,7 +159,7 @@ if file_original and file_alterada:
                 df_changes_grouped,
                 use_container_width=True,
                 hide_index=True,
-                selection_mode="single-row",
+                selection_mode="multi-row",
                 on_select="rerun",
                 height=300,
                 column_config={
@@ -169,22 +169,26 @@ if file_original and file_alterada:
             )
 
             # Lógica de Filtro: Verifica se o usuário clicou em algo
-            selected_id_ref = None
-            selected_rota_name = None
+            selected_ids_ref = []
+            selected_rota_names = []
 
             if len(event.selection.rows) > 0:
-                # Pega o índice numérico da linha selecionada na lista de alterações
-                selected_idx = event.selection.rows[0]
-                # Descobre qual é o ID de referência e o nome da rota
-                selected_id_ref = df_changes_grouped.iloc[selected_idx]["ID_REF"]
-                selected_rota_name = df_changes_grouped.iloc[selected_idx]["Rota"]
+                # Pega os índices numéricos das linhas selecionadas
+                for selected_idx in event.selection.rows:
+                    selected_ids_ref.append(df_changes_grouped.iloc[selected_idx]["ID_REF"])
+                    selected_rota_names.append(str(df_changes_grouped.iloc[selected_idx]["Rota"]))
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
-                if selected_id_ref is not None:
-                    st.info(f"🔎 Filtrando visualização para a Rota: **{selected_rota_name}**")
-                    # Mostra apenas a linha selecionada
-                    st.dataframe(df_display.loc[[selected_id_ref]], use_container_width=True)
+                if len(selected_ids_ref) > 0:
+                    # Limita a exibição de nomes se forem muitos para não poluir a tela
+                    display_names = ", ".join(selected_rota_names)
+                    if len(selected_rota_names) > 10:
+                        display_names = f"{len(selected_rota_names)} rotas selecionadas"
+
+                    st.info(f"🔎 Filtrando visualização para: **{display_names}**")
+                    # Mostra apenas as linhas selecionadas
+                    st.dataframe(df_display.loc[selected_ids_ref], use_container_width=True)
                     
                     # Botão para limpar filtro
                     if st.button("🔄 Mostrar Tabela Completa"):
