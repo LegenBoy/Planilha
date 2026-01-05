@@ -45,9 +45,6 @@ if file_original and file_alterada:
         # Guardar a ordem original das colunas para classificação por posição (Letras do Excel)
         original_cols_order = df_old.columns.tolist()
 
-        # Identificar nome da coluna X (índice 23) para destaque específico
-        col_x_name = original_cols_order[23] if len(original_cols_order) > 23 else None
-
         # Tentar usar a coluna 'rotas' como índice (Identificador Único)
         id_col = 'rotas'
         if id_col in df_old.columns and id_col in df_new.columns:
@@ -65,7 +62,6 @@ if file_original and file_alterada:
         # Dataframes para visualização
         df_display = df_new.copy().astype(object) # Cópia para mostrar X -> Y
         changes_list = [] # Lista para armazenar o resumo das alterações
-        rows_with_filial_changes = set() # Rastrear linhas com alterações de filiais
 
         # Interseção de linhas e colunas (para comparar apenas o que existe em ambas)
         common_cols = df_old.columns.intersection(df_new.columns)
@@ -121,7 +117,8 @@ if file_original and file_alterada:
                         categoria = "Geral"
                         if 4 <= col_idx <= 15: # Colunas E (4) até P (15)
                             categoria = "Alterações Filiais"
-                            rows_with_filial_changes.add(idx)
+                        elif col_idx == 23: # Coluna X (23)
+                            categoria = "Alteração Transportadora"
                         elif 20 <= col_idx <= 25: # Colunas U (20) até Z (25)
                             categoria = "Alterações de Transporte"
                         elif col_idx == 26: # Coluna AA (26)
@@ -152,7 +149,7 @@ if file_original and file_alterada:
             main_table_placeholder = st.empty()
 
             st.markdown("---")
-            st.subheader("📝 Lista de Alterações")
+            st.subheader("📝 Lista de Alterações (Clique para filtrar acima)")
             st.caption("Clique em uma linha abaixo para ver a alteração correspondente na tabela principal.")
 
             # DataFrame de Alterações (Lista Detalhada)
@@ -161,8 +158,10 @@ if file_original and file_alterada:
             # --- SEPARAÇÃO POR CATEGORIA ---
             # 1. Alterações Filiais
             df_det_filiais = df_changes_detailed[df_changes_detailed["Categoria"] == "Alterações Filiais"]
-            # 2. Outras Alterações
-            df_det_outros = df_changes_detailed[df_changes_detailed["Categoria"] != "Alterações Filiais"]
+            # 2. Alterações Transportadora (Coluna X)
+            df_det_transportadora = df_changes_detailed[df_changes_detailed["Categoria"] == "Alteração Transportadora"]
+            # 3. Outras Alterações (Exclui Filiais e Transportadora)
+            df_det_outros = df_changes_detailed[~df_changes_detailed["Categoria"].isin(["Alterações Filiais", "Alteração Transportadora"])]
 
             # Função auxiliar para agrupar alterações por rota
             def group_changes(df):
@@ -175,6 +174,7 @@ if file_original and file_alterada:
                 ).reset_index()
 
             df_grouped_filiais = group_changes(df_det_filiais)
+            df_grouped_transportadora = group_changes(df_det_transportadora)
             df_grouped_outros = group_changes(df_det_outros)
             
             # --- EXIBIÇÃO LISTA 1: FILIAIS ---
@@ -190,6 +190,27 @@ if file_original and file_alterada:
                 column_config={
                     "ID_REF": None, # Oculta a coluna de ID interno
                     "Alterações": st.column_config.TextColumn("Detalhes das Alterações", width="large")
+                }
+            )
+
+            # --- EXIBIÇÃO LISTA 2: TRANSPORTADORA (COLUNA X) ---
+            st.markdown("### 🚚 Alteração Transportadora (Coluna X)")
+            
+            # Função para destacar texto
+            def highlight_transport(val):
+                return 'color: #FF4500; font-weight: bold'
+
+            event_transportadora = st.dataframe(
+                df_grouped_transportadora.style.map(highlight_transport, subset=["Alterações"]),
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="multi-row",
+                on_select="rerun",
+                height=150,
+                key="grid_transportadora",
+                column_config={
+                    "ID_REF": None, 
+                    "Alterações": st.column_config.TextColumn("Detalhes", width="large")
                 }
             )
 
@@ -219,6 +240,12 @@ if file_original and file_alterada:
                     selected_ids_ref.append(df_grouped_filiais.iloc[selected_idx]["ID_REF"])
                     selected_rota_names.append(str(df_grouped_filiais.iloc[selected_idx]["Rota"]))
 
+            # Processa seleção Transportadora
+            if len(event_transportadora.selection.rows) > 0:
+                for selected_idx in event_transportadora.selection.rows:
+                    selected_ids_ref.append(df_grouped_transportadora.iloc[selected_idx]["ID_REF"])
+                    selected_rota_names.append(str(df_grouped_transportadora.iloc[selected_idx]["Rota"]))
+
             # Processa seleção Outros
             if len(event_outros.selection.rows) > 0:
                 for selected_idx in event_outros.selection.rows:
@@ -231,12 +258,6 @@ if file_original and file_alterada:
 
             # Renderiza a Tabela Principal (Filtrada ou Completa)
             with main_table_placeholder.container():
-                # Função de estilo para destacar linhas com alterações de filiais
-                def highlight_filial_rows(row):
-                    if row.name in rows_with_filial_changes:
-                        return ['color: blue; font-weight: bold'] * len(row)
-                    return [''] * len(row)
-
                 if len(selected_ids_ref) > 0:
                     # Limita a exibição de nomes se forem muitos para não poluir a tela
                     display_names = ", ".join(selected_rota_names)
@@ -245,14 +266,14 @@ if file_original and file_alterada:
 
                     st.info(f"🔎 Filtrando visualização para: **{display_names}**")
                     # Mostra apenas as linhas selecionadas
-                    st.dataframe(df_display.loc[selected_ids_ref].style.apply(highlight_filial_rows, axis=1), use_container_width=True)
+                    st.dataframe(df_display.loc[selected_ids_ref], use_container_width=True)
                     
                     # Botão para limpar filtro
                     if st.button("🔄 Mostrar Tabela Completa"):
                         st.rerun()
                 else:
                     # Mostra tabela completa padrão
-                    st.dataframe(df_display.style.apply(highlight_filial_rows, axis=1), use_container_width=True)
+                    st.dataframe(df_display, use_container_width=True)
 
             # Opção de Download da Lista
             csv = df_changes_detailed.to_csv(index=False).encode('utf-8')
