@@ -5,7 +5,7 @@ import numpy as np
 # Configuração da página
 st.set_page_config(page_title="Comparador de Planilhas", layout="wide")
 
-st.title("📊 Comparador de Cubagem Inteligente")
+st.title("📊 Comparador de Cubagem")
 st.info("Faça o upload da planilha Original e da Alterada. O sistema mostrará as diferenças e permitirá navegar por elas.")
 
 # --- 1. FUNÇÕES DE CARREGAMENTO ---
@@ -44,6 +44,9 @@ if file_original and file_alterada:
 
         # Guardar a ordem original das colunas para classificação por posição (Letras do Excel)
         original_cols_order = df_old.columns.tolist()
+
+        # Identificar nome da coluna X (índice 23) para destaque específico
+        col_x_name = original_cols_order[23] if len(original_cols_order) > 23 else None
 
         # Tentar usar a coluna 'rotas' como índice (Identificador Único)
         id_col = 'rotas'
@@ -149,7 +152,7 @@ if file_original and file_alterada:
             main_table_placeholder = st.empty()
 
             st.markdown("---")
-            st.subheader("📝 Lista de Alterações (Clique para filtrar acima)")
+            st.subheader("📝 Lista de Alterações")
             st.caption("Clique em uma linha abaixo para ver a alteração correspondente na tabela principal.")
 
             # DataFrame de Alterações (Lista Detalhada)
